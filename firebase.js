@@ -13,16 +13,21 @@
 //   appId: "1:123:web:abc..."
 // };
 
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  databaseURL: "YOUR_DATABASE_URL",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyDT8jdl9qpUllaItXbPfV0EzLBxATOWqeI",
+  authDomain: "arisahealth-scheduler.firebaseapp.com",
+  databaseURL: "https://arisahealth-scheduler-default-rtdb.firebaseio.com",
+  projectId: "arisahealth-scheduler",
+  storageBucket: "arisahealth-scheduler.firebasestorage.app",
+  messagingSenderId: "208760160482",
+  appId: "1:208760160482:web:ce6a72f2cae6c29d369ebb"
 };
 
-// Initialize (v8 compat build)
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
