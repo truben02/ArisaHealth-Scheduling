@@ -1,19 +1,25 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8">
   <title>Room Weekly View</title>
   <link rel="stylesheet" href="style.css">
+
+  <!-- Firebase libraries -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+  <!-- Your Firebase config -->
   <script src="firebase.js"></script>
+
+  <!-- Room-specific JS -->
+  <script src="room.js"></script>
 </head>
 <body>
-  <h1 id="title">Room</h1>
-  <button id="prev">Previous Week</button>
-  <button id="next">Next Week</button>
-  <div id="week"></div>
+  <h1 id="roomTitle">Room Weekly View</h1>
 
-  <script src="room.js"></script>
+  <button id="prevWeek">Previous Week</button>
+  <button id="nextWeek">Next Week</button>
+  <div id="weekContainer"></div>
 </body>
 </html>
