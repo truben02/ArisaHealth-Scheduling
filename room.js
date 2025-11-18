@@ -1,83 +1,101 @@
-// room.js
-function getQueryParam(name) {
-  const url = new URL(location.href);
-  return url.searchParams.get(name);
-}
-const room = getQueryParam('room') || 'Room A';
-let dateParam = getQueryParam('date');
-let monday = dateParam ? getMonday(dateParam) : getMonday(new Date());
+document.addEventListener("DOMContentLoaded", function() {
+  const params = new URLSearchParams(window.location.search);
+  const room = params.get('room') || "Room A";
 
-document.getElementById('title').textContent = `${room} — week of ${monday.toDateString()}`;
+  const roomTitle = document.getElementById("roomTitle");
+  const weekContainer = document.getElementById("weekContainer");
+  const prevWeekBtn = document.getElementById("prevWeek");
+  const nextWeekBtn = document.getElementById("nextWeek");
 
-document.getElementById('prev').addEventListener('click', () => {
-  monday.setDate(monday.getDate() - 7);
-  renderWeek();
-});
-document.getElementById('next').addEventListener('click', () => {
-  monday.setDate(monday.getDate() + 7);
-  renderWeek();
-});
+  roomTitle.textContent = `${room} — Weekly View`;
 
-const times = (() => {
-  const arr = [];
-  for (let h=8; h<=17; h++) for (let m of [0,15,30,45]) arr.push(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
-  return arr;
-})();
-
-function getMonday(d) {
-  const D = new Date(d);
-  const day = D.getDay();
-  const diff = D.getDate() - day + (day === 0 ? -6 : 1);
-  return new Date(D.setDate(diff));
-}
-
-function renderWeek() {
-  document.getElementById('title').textContent = `${room} — week of ${monday.toDateString()}`;
-  const container = document.getElementById('week');
-  container.innerHTML = '';
-  const days = [];
-  for (let i=0;i<5;i++) {
-    const d = new Date(monday);
-    d.setDate(d.getDate()+i);
-    days.push(d);
+  const times = [];
+  for (let h = 8; h <= 17; h++) {
+    for (let m of [0,15,30,45]) {
+      const hh = String(h).padStart(2,'0');
+      const mm = String(m).padStart(2,'0');
+      times.push(`${hh}:${mm}`);
+    }
   }
 
-  const table = document.createElement('table');
-  const thead = document.createElement('thead');
-  const headRow = document.createElement('tr');
-  headRow.innerHTML = '<th>Time</th>' + days.map(d => `<th>${d.toDateString().slice(0,10)}</th>`).join('');
-  thead.appendChild(headRow);
-  table.appendChild(thead);
+  let currentMonday = getMonday(new Date(params.get('date') || new Date()));
 
-  const tbody = document.createElement('tbody');
-  times.forEach(time => {
-    const tr = document.createElement('tr');
-    const tcell = document.createElement('td');
-    tcell.textContent = time;
-    tr.appendChild(tcell);
-
-    days.forEach(d => {
-      const dateID = d.toISOString().slice(0,10);
-      const td = document.createElement('td');
-
-      db.ref(`rooms/${room}/${dateID}/${time}`).on('value', snap => {
-        td.textContent = snap.val() || '';
-        td.classList.toggle('reserved', !!snap.val());
-      });
-
-      td.addEventListener('click', async () => {
-        const cur = (await db.ref(`rooms/${room}/${dateID}/${time}`).once('value')).val() || '';
-        const val = prompt(`Reservation for ${room} ${dateID} ${time}:`, cur);
-        db.ref(`rooms/${room}/${dateID}/${time}`).set(val || '');
-      });
-
-      tr.appendChild(td);
-    });
-
-    tbody.appendChild(tr);
+  prevWeekBtn.addEventListener('click', () => {
+    currentMonday.setDate(currentMonday.getDate() - 7);
+    renderWeek();
   });
 
-  table.appendChild(tbody);
-  container.appendChild(table);
-}
-renderWeek();
+  nextWeekBtn.addEventListener('click', () => {
+    currentMonday.setDate(currentMonday.getDate() + 7);
+    renderWeek();
+  });
+
+  function getMonday(d) {
+    d = new Date(d);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is Sunday
+    return new Date(d.setDate(diff));
+  }
+
+  function renderWeek() {
+    weekContainer.innerHTML = '';
+    const table = document.createElement('table');
+    const thead = document.createElement('thead');
+    const tbody = document.createElement('tbody');
+
+    // Header row: times + dates
+    const trHead = document.createElement('tr');
+    const thEmpty = document.createElement('th');
+    thEmpty.textContent = 'Time';
+    trHead.appendChild(thEmpty);
+
+    const dates = [];
+    for (let i = 0; i < 5; i++) {
+      const d = new Date(currentMonday);
+      d.setDate(d.getDate() + i);
+      const iso = d.toISOString().slice(0,10);
+      dates.push(iso);
+      const th = document.createElement('th');
+      th.textContent = iso;
+      trHead.appendChild(th);
+    }
+    thead.appendChild(trHead);
+
+    // Table rows: each time slot
+    times.forEach(time => {
+      const tr = document.createElement('tr');
+      const tdTime = document.createElement('td');
+      tdTime.textContent = time;
+      tr.appendChild(tdTime);
+
+      dates.forEach(date => {
+        const tdVal = document.createElement('td');
+        tdVal.className = 'slotCell';
+        tdVal.textContent = '...';
+
+        // Realtime subscription
+        db.ref(`rooms/${room}/${date}/${time}`).on('value', snap => {
+          const v = snap.val();
+          tdVal.textContent = v || '';
+          tdVal.classList.toggle('reserved', !!v);
+        });
+
+        tdVal.addEventListener('click', async () => {
+          const current = (await db.ref(`rooms/${room}/${date}/${time}`).once('value')).val() || '';
+          const val = prompt(`Enter reservation name / note for ${room} ${date} ${time}:`, current);
+          db.ref(`rooms/${room}/${date}/${time}`).set(val || '');
+        });
+
+        tr.appendChild(tdVal);
+      });
+
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(thead);
+    table.appendChild(tbody);
+    weekContainer.appendChild(table);
+  }
+
+  renderWeek();
+});
