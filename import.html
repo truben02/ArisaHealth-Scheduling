@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Import CSVs to Firebase</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script src="firebase.js"></script>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    input, button { margin: 6px 0; }
+  </style>
+</head>
+<body>
+  <h1>Import CSVs (one file per room)</h1>
+  <p>CSV format: first column = time (HH:MM), next 5 columns = Monday→Friday cells.</p>
+  <label>Choose files (multiple): <input id="files" type="file" multiple accept=".csv"></label><br>
+  <label>Week start (Monday): <input id="weekStart" type="date"></label><br>
+  <button id="importBtn">Import selected files</button>
+  <pre id="log"></pre>
+
+<script>
+function pad(n){return String(n).padStart(2,'0');}
+function isoDate(d){return d.toISOString().slice(0,10);}
+
+document.getElementById('importBtn').addEventListener('click', async () => {
+  const files = document.getElementById('files').files;
+  const weekStartValue = document.getElementById('weekStart').value;
+  const log = document.getElementById('log');
+  log.textContent = '';
+
+  if (!files.length) return alert('Choose at least one CSV');
+  if (!weekStartValue) return alert('Pick the Monday date that corresponds to the CSV columns');
+
+  const weekStart = new Date(weekStartValue);
+  // build 5 dates
+  const dates = [];
+  for (let i=0;i<5;i++){ const d = new Date(weekStart); d.setDate(d.getDate()+i); dates.push(isoDate(d)); }
+
+  for (let f of files) {
+    const text = await f.text();
+    const rows = text.split(/\r?\n/).map(r => r.split(',').map(c => (c||'').trim()));
+    // determine room name from filename (strip extension)
+    const room = f.name.replace(/\.[^/.]+$/, "");
+    log.textContent += `\nProcessing ${f.name} as room "${room}"\n`;
+
+    for (let r of rows) {
+      if (!r || r.length < 2) continue;
+      const time = r[0].trim();
+      if (!time) continue;
+      // iterate Mon-Fri columns 1..5 -> dates[0..4]
+      for (let c=1;c<=5;c++) {
+        const val = (r[c] || '').trim();
+        const dateID = dates[c-1];
+        // write to firebase (note: empty string clears)
+        await db.ref(`rooms/${room}/${dateID}/${time}`).set(val || '');
+        log.textContent += `  ${dateID} ${time} -> "${val}"\n`;
+      }
+    }
+  }
+  log.textContent += "\nImport finished.\n";
+  alert('Import finished - check your site.');
+});
+</script>
+</body>
+</html>
