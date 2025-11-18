@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Room Reservations</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script src="firebase.js"></script>
+</head>
+<body>
+  <h1>Room Reservations</h1>
+
+  <label>Select date: <input id="datePicker" type="date"></label>
+  <button id="todayBtn">Today</button>
+  <div id="rooms"></div>
+
+  <hr>
+  <p>
+    Admin / Import: <a href="import.html" target="_blank">Import CSVs (one tab per room)</a>
+  </p>
+
+  <script src="script.js"></script>
+</body>
+</html>
