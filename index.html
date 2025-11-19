@@ -18,13 +18,21 @@
 <body>
   <h1>Room Reservations</h1>
 
-  <label>Select date: <input id="datePicker" type="date"></label>
-  <button id="todayBtn">Today</button>
+  <div id="navControls">
+    <button id="prevBtn">◀</button>
+    <input id="datePicker" type="date">
+    <button id="nextBtn">▶</button>
+    <button id="todayBtn">Today</button>
+  </div>
+
   <div id="rooms"></div>
 
   <hr>
   <p>
     Admin / Import: <a href="import.html" target="_blank">Import CSVs</a>
   </p>
+
+  <script src="script.js"></script>
 </body>
+
 </html>
