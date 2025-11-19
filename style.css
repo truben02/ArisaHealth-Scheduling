@@ -104,3 +104,9 @@ th a:hover {
 a {
   color: #1a0dab;
 }
+#currentDay {
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-top: 8px;
+}
