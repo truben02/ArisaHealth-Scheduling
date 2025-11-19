@@ -32,10 +32,9 @@ document.addEventListener("DOMContentLoaded", function () {
     const date = datePicker.value;
     if (!date) return;
 
-    // --- Update formatted day ---
+    // Update formatted day label
     currentDayDiv.textContent = formatPretty(date);
 
-    // --- Build table ---
     roomsContainer.innerHTML = "";
 
     const table = document.createElement("table");
@@ -48,7 +47,7 @@ document.addEventListener("DOMContentLoaded", function () {
     thTime.textContent = "Time";
     headRow.appendChild(thTime);
 
-    rooms.forEach((room) => {
+    rooms.forEach((room, colIndex) => {
       const th = document.createElement("th");
       th.innerHTML = `<a href="room.html?room=${encodeURIComponent(room)}&date=${date}">${room}</a>`;
       headRow.appendChild(th);
@@ -56,7 +55,7 @@ document.addEventListener("DOMContentLoaded", function () {
     thead.appendChild(headRow);
 
     // Body rows
-    times.forEach((time) => {
+    times.forEach((time, rowIndex) => {
       const tr = document.createElement("tr");
 
       // Time column
@@ -64,27 +63,20 @@ document.addEventListener("DOMContentLoaded", function () {
       tdTime.textContent = time;
       tr.appendChild(tdTime);
 
-      // Room cells
-      rooms.forEach((room) => {
+      rooms.forEach((room, colIndex) => {
         const td = document.createElement("td");
         td.className = "slotCell";
         td.dataset.room = room;
         td.dataset.date = date;
         td.dataset.time = time;
-        td.textContent = "...";
+        td.dataset.row = rowIndex;
+        td.dataset.col = colIndex + 1;
 
         // Firebase realtime
         db.ref(`rooms/${room}/${date}/${time}`).on("value", (snap) => {
           const v = snap.val();
           td.textContent = v || "";
           td.classList.toggle("reserved", !!v);
-        });
-
-        // Edit slot on click
-        td.addEventListener("click", async () => {
-          const current = (await db.ref(`rooms/${room}/${date}/${time}`).once("value")).val() || "";
-          const val = prompt(`Enter reservation for ${room} ${date} ${time}:`, current);
-          db.ref(`rooms/${room}/${date}/${time}`).set(val || "");
         });
 
         tr.appendChild(td);
@@ -102,13 +94,11 @@ document.addEventListener("DOMContentLoaded", function () {
   function shiftDay(days) {
     const d = new Date(datePicker.value + "T00:00:00");
 
-    // temporarily remove change listener to prevent double load
     datePicker.removeEventListener("change", loadDay);
 
     d.setDate(d.getDate() + days);
     datePicker.value = d.toLocaleDateString("en-CA");
 
-    // re-add listener
     datePicker.addEventListener("change", loadDay);
 
     loadDay();
@@ -118,6 +108,7 @@ document.addEventListener("DOMContentLoaded", function () {
   prevBtn.addEventListener("click", () => shiftDay(-1));
   nextBtn.addEventListener("click", () => shiftDay(1));
   datePicker.addEventListener("change", loadDay);
+
   todayBtn.addEventListener("click", () => {
     const today = new Date();
     datePicker.value = today.toLocaleDateString("en-CA");
@@ -127,10 +118,13 @@ document.addEventListener("DOMContentLoaded", function () {
   // --- Initialize ---
   datePicker.value = new Date().toLocaleDateString("en-CA");
   loadDay();
+
+
   // -----------------------------------------
-  // MULTI-CELL DRAG SELECT + BULK EDIT
+  // DRAG SELECT + BULK EDIT
   // -----------------------------------------
   let isSelecting = false;
+  let startCell = null;
   let selectedCells = new Set();
 
   function clearSelection() {
@@ -138,27 +132,48 @@ document.addEventListener("DOMContentLoaded", function () {
     selectedCells.clear();
   }
 
-  // Mouse down starts selecting
+  function getPosition(td) {
+    return {
+      row: Number(td.dataset.row),
+      col: Number(td.dataset.col)
+    };
+  }
+
+  function inRange(x, a, b) {
+    return x >= Math.min(a, b) && x <= Math.max(a, b);
+  }
+
+  function updateSelection(currentCell) {
+    clearSelection();
+    const start = getPosition(startCell);
+    const end = getPosition(currentCell);
+
+    document.querySelectorAll(".slotCell").forEach(td => {
+      const pos = getPosition(td);
+      if (inRange(pos.row, start.row, end.row) &&
+          inRange(pos.col, start.col, end.col)) {
+        td.classList.add("selectedCell");
+        selectedCells.add(td);
+      }
+    });
+  }
+
   document.addEventListener("mousedown", (e) => {
     if (e.target.classList.contains("slotCell")) {
       isSelecting = true;
-      clearSelection();
-      selectedCells.add(e.target);
-      e.target.classList.add("selectedCell");
+      startCell = e.target;
+      updateSelection(e.target);
       e.preventDefault();
     }
   });
 
-  // Mouse move selects more cells
-  document.addEventListener("mouseover", (e) => {
+  document.addEventListener("mousemove", (e) => {
     if (!isSelecting) return;
     if (e.target.classList.contains("slotCell")) {
-      selectedCells.add(e.target);
-      e.target.classList.add("selectedCell");
+      updateSelection(e.target);
     }
   });
 
-  // Mouse up triggers bulk edit
   document.addEventListener("mouseup", async () => {
     if (isSelecting && selectedCells.size > 1) {
       const val = prompt(`Set value for ${selectedCells.size} slots:`);
