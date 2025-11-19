@@ -11,9 +11,6 @@
 
   <!-- Your Firebase config -->
   <script src="firebase.js"></script>
-
-  <!-- Your main JS -->
-  <script src="script.js"></script>
 </head>
 <body>
   <h1>Room Reservations</h1>
@@ -25,6 +22,9 @@
     <button id="todayBtn">Today</button>
   </div>
 
+  <!-- Display formatted day -->
+  <div id="currentDay" class="dayDisplay"></div>
+
   <div id="rooms"></div>
 
   <hr>
@@ -32,7 +32,7 @@
     Admin / Import: <a href="import.html" target="_blank">Import CSVs</a>
   </p>
 
+  <!-- Your main JS -->
   <script src="script.js"></script>
 </body>
-
 </html>
