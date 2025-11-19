@@ -127,4 +127,49 @@ document.addEventListener("DOMContentLoaded", function () {
   // --- Initialize ---
   datePicker.value = new Date().toLocaleDateString("en-CA");
   loadDay();
+  // -----------------------------------------
+  // MULTI-CELL DRAG SELECT + BULK EDIT
+  // -----------------------------------------
+  let isSelecting = false;
+  let selectedCells = new Set();
+
+  function clearSelection() {
+    selectedCells.forEach(td => td.classList.remove("selectedCell"));
+    selectedCells.clear();
+  }
+
+  // Mouse down starts selecting
+  document.addEventListener("mousedown", (e) => {
+    if (e.target.classList.contains("slotCell")) {
+      isSelecting = true;
+      clearSelection();
+      selectedCells.add(e.target);
+      e.target.classList.add("selectedCell");
+      e.preventDefault();
+    }
+  });
+
+  // Mouse move selects more cells
+  document.addEventListener("mouseover", (e) => {
+    if (!isSelecting) return;
+    if (e.target.classList.contains("slotCell")) {
+      selectedCells.add(e.target);
+      e.target.classList.add("selectedCell");
+    }
+  });
+
+  // Mouse up triggers bulk edit
+  document.addEventListener("mouseup", async () => {
+    if (isSelecting && selectedCells.size > 1) {
+      const val = prompt(`Set value for ${selectedCells.size} slots:`);
+      if (val !== null) {
+        for (let td of selectedCells) {
+          const { room, date, time } = td.dataset;
+          db.ref(`rooms/${room}/${date}/${time}`).set(val);
+        }
+      }
+    }
+    clearSelection();
+    isSelecting = false;
+  });
 });
