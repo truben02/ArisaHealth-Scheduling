@@ -29,7 +29,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const thead = document.createElement("thead");
     const tbody = document.createElement("tbody");
 
-    // Header
+    // Header row
     const headRow = document.createElement("tr");
     const thTime = document.createElement("th");
     thTime.textContent = "Time";
@@ -60,14 +60,14 @@ document.addEventListener("DOMContentLoaded", function () {
         td.dataset.date = date;
         td.dataset.time = time;
 
-        // Subscribe
+        // Subscribe to Firebase realtime
         db.ref(`rooms/${room}/${date}/${time}`).on("value", (snap) => {
           const v = snap.val();
           td.textContent = v || "";
           td.classList.toggle("reserved", !!v);
         });
 
-        // Edit reservation
+        // Click to edit
         td.addEventListener("click", async () => {
           const current = (await db.ref(`rooms/${room}/${date}/${time}`).once("value")).val() || "";
           const val = prompt(`Enter reservation for ${room} ${date} ${time}:`, current);
@@ -85,12 +85,19 @@ document.addEventListener("DOMContentLoaded", function () {
     roomsContainer.appendChild(table);
   }
 
-  // --- Safe day shifter (no timezone issues) ---
+  // --- Shift day safely ---
   function shiftDay(days) {
-    const d = new Date(datePicker.value + "T00:00:00"); // LOCAL midnight
-    d.setDate(d.getDate() + days);
+    const d = new Date(datePicker.value + "T00:00:00"); // local midnight
 
-    datePicker.value = d.toLocaleDateString("en-CA"); // YYYY-MM-DD
+    // temporarily remove the change listener
+    datePicker.removeEventListener("change", loadDay);
+
+    d.setDate(d.getDate() + days);
+    datePicker.value = d.toLocaleDateString("en-CA");
+
+    // re-add the change listener
+    datePicker.addEventListener("change", loadDay);
+
     loadDay();
   }
 
@@ -106,7 +113,7 @@ document.addEventListener("DOMContentLoaded", function () {
     loadDay();
   });
 
-  // --- Init ---
+  // --- Initialize ---
   datePicker.value = new Date().toLocaleDateString("en-CA");
   loadDay();
 });
