@@ -2,7 +2,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // --- Read URL parameters ---
   const url = new URL(window.location.href);
   const room = url.searchParams.get("room");
-  let startDate = url.searchParams.get("date"); // This will become week start (Mon)
+  let startDate = url.searchParams.get("date"); // clicking from index loads this
 
   const roomTitle = document.getElementById("roomTitle");
   const datePicker = document.getElementById("datePicker");
@@ -25,26 +25,23 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // --- Convert YYYY-MM-DD to Date ---
   function toDate(iso) {
     return new Date(iso + "T00:00:00");
   }
 
-  // --- Convert Date to YYYY-MM-DD ---
   function toISO(d) {
     return d.toLocaleDateString("en-CA");
   }
 
   // --- Get Monday for a given date ---
   function getMonday(d) {
-    const day = d.getDay();        // 0=Sun 1=Mon ...
-    const diff = day === 0 ? -6 : 1 - day;
+    const day = d.getDay(); // 0=Sun 1=Mon...
+    const diff = day === 0 ? -6 : 1 - day; 
     const monday = new Date(d);
     monday.setDate(d.getDate() + diff);
     return monday;
   }
 
-  // --- Build week array (7 dates) ---
   function buildWeek(monday) {
     const days = [];
     for (let i = 0; i < 7; i++) {
@@ -63,14 +60,15 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  // --- Main render ---
+  // -------------------------------------------------------------
+  // Main Render - Week View
+  // -------------------------------------------------------------
   function loadWeek() {
-    const start = getMonday(toDate(startDate));
-    const week = buildWeek(start);
+    const monday = getMonday(toDate(startDate));
+    const week = buildWeek(monday);
 
-    // Update displayed title & date picker
-    roomTitle.textContent = `${room} — Week of ${pretty(start)}`;
-    datePicker.value = toISO(start);
+    roomTitle.textContent = `${room} — Week of ${pretty(monday)}`;
+    datePicker.value = toISO(monday);
 
     roomTable.innerHTML = "";
 
@@ -78,13 +76,13 @@ document.addEventListener("DOMContentLoaded", function () {
     const thead = document.createElement("thead");
     const tbody = document.createElement("tbody");
 
-    // Header row
+    // Header
     const trHead = document.createElement("tr");
     const thTime = document.createElement("th");
     thTime.textContent = "Time";
     trHead.appendChild(thTime);
 
-    week.forEach((d) => {
+    week.forEach((d, colIndex) => {
       const th = document.createElement("th");
       th.textContent = pretty(d);
       trHead.appendChild(th);
@@ -93,38 +91,38 @@ document.addEventListener("DOMContentLoaded", function () {
     thead.appendChild(trHead);
     table.appendChild(thead);
 
-    // Rows for each time
-    times.forEach((time) => {
+    // Body rows
+    times.forEach((time, rowIndex) => {
       const tr = document.createElement("tr");
 
       const tdTime = document.createElement("td");
       tdTime.textContent = time;
       tr.appendChild(tdTime);
 
-      week.forEach((d) => {
+      week.forEach((d, colIndex) => {
         const iso = toISO(d);
         const td = document.createElement("td");
         td.className = "slotCell";
         td.dataset.room = room;
         td.dataset.date = iso;
         td.dataset.time = time;
+        td.dataset.row = rowIndex;
+        td.dataset.col = colIndex + 1; // +1 because col 0 is time column
+
         td.textContent = "...";
 
-        // Firebase realtime updates
+        // Live update from Firebase
         db.ref(`rooms/${room}/${iso}/${time}`).on("value", (snap) => {
           const v = snap.val();
           td.textContent = v || "";
           td.classList.toggle("reserved", !!v);
         });
 
-        // Edit slot
+        // Single-cell edit
         td.addEventListener("click", async () => {
           const ref = db.ref(`rooms/${room}/${iso}/${time}`);
           const current = (await ref.once("value")).val() || "";
-          const val = prompt(
-            `Enter reservation for ${room}\n${pretty(d)} ${time}:`,
-            current
-          );
+          const val = prompt(`Enter reservation for ${room}\n${pretty(d)} ${time}:`, current);
           ref.set(val || "");
         });
 
@@ -138,13 +136,13 @@ document.addEventListener("DOMContentLoaded", function () {
     roomTable.appendChild(table);
   }
 
-  // --- Date picker change (jump to that week) ---
+  // --- Date picker jump ---
   datePicker.addEventListener("change", () => {
     startDate = datePicker.value;
     loadWeek();
   });
 
-  // --- Week shifting ---
+  // --- Week navigation ---
   function shiftWeek(offset) {
     const d = getMonday(toDate(startDate));
     d.setDate(d.getDate() + offset * 7);
@@ -155,9 +153,80 @@ document.addEventListener("DOMContentLoaded", function () {
   prevBtn.addEventListener("click", () => shiftWeek(-1));
   nextBtn.addEventListener("click", () => shiftWeek(1));
 
-  // --- Home ---
   homeBtn.addEventListener("click", () => {
     window.location.href = "index.html";
+  });
+
+  // -------------------------------------------------------------
+  // DRAG SELECT + BULK EDIT (rectangle-based)
+  // -------------------------------------------------------------
+  let isSelecting = false;
+  let startCell = null;
+  let selectedCells = new Set();
+
+  function clearSelection() {
+    selectedCells.forEach(td => td.classList.remove("selectedCell"));
+    selectedCells.clear();
+  }
+
+  function getPos(td) {
+    return {
+      row: Number(td.dataset.row),
+      col: Number(td.dataset.col)
+    };
+  }
+
+  function inRange(x, a, b) {
+    return x >= Math.min(a, b) && x <= Math.max(a, b);
+  }
+
+  function updateSelection(currentCell) {
+    clearSelection();
+
+    const s = getPos(startCell);
+    const e = getPos(currentCell);
+
+    document.querySelectorAll(".slotCell").forEach(td => {
+      const p = getPos(td);
+      if (inRange(p.row, s.row, e.row) && inRange(p.col, s.col, e.col)) {
+        td.classList.add("selectedCell");
+        selectedCells.add(td);
+      }
+    });
+  }
+
+  // Start drag
+  document.addEventListener("mousedown", (e) => {
+    if (e.target.classList.contains("slotCell")) {
+      isSelecting = true;
+      startCell = e.target;
+      updateSelection(e.target);
+      e.preventDefault();
+    }
+  });
+
+  // Move drag
+  document.addEventListener("mousemove", (e) => {
+    if (!isSelecting) return;
+    if (e.target.classList.contains("slotCell")) {
+      updateSelection(e.target);
+    }
+  });
+
+  // End drag → bulk edit
+  document.addEventListener("mouseup", async () => {
+    if (isSelecting && selectedCells.size > 1) {
+      const val = prompt(`Set value for ${selectedCells.size} slots:`);
+      if (val !== null) {
+        for (let td of selectedCells) {
+          const { room, date, time } = td.dataset;
+          db.ref(`rooms/${room}/${date}/${time}`).set(val);
+        }
+      }
+    }
+
+    clearSelection();
+    isSelecting = false;
   });
 
   // Initial load
