@@ -77,4 +77,36 @@ document.addEventListener("DOMContentLoaded", function () {
         tr.appendChild(td);
       });
 
-      tbody.a
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(thead);
+    table.appendChild(tbody);
+    roomsContainer.appendChild(table);
+  }
+
+  // --- Safe day shifter (no timezone issues) ---
+  function shiftDay(days) {
+    const d = new Date(datePicker.value + "T00:00:00"); // LOCAL midnight
+    d.setDate(d.getDate() + days);
+
+    datePicker.value = d.toLocaleDateString("en-CA"); // YYYY-MM-DD
+    loadDay();
+  }
+
+  // --- Event listeners ---
+  prevBtn.addEventListener("click", () => shiftDay(-1));
+  nextBtn.addEventListener("click", () => shiftDay(1));
+
+  datePicker.addEventListener("change", loadDay);
+
+  todayBtn.addEventListener("click", () => {
+    const today = new Date();
+    datePicker.value = today.toLocaleDateString("en-CA");
+    loadDay();
+  });
+
+  // --- Init ---
+  datePicker.value = new Date().toLocaleDateString("en-CA");
+  loadDay();
+});
