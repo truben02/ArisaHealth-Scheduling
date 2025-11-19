@@ -82,6 +82,19 @@ th a:hover {
   outline-offset: -2px;
 }
 
+/* NEW — Sticky room header */
+.roomHeader {
+  position: sticky;
+  top: 0;
+  background: #f0f0f0;
+  padding: 10px 14px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  border-bottom: 2px solid #ccc;
+  z-index: 20;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+
 /* Room boxes (legacy structure if used) */
 .roomBox {
   margin-bottom: 28px;
