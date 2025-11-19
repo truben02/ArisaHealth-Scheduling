@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", function() {
-  // --- Room setup ---
-  const rooms = ["RB 1","RB 2","RB 3","RB 4","RB 5","RB 8","RB Group Room"];
+  // --- Room setup (safe names for Firebase and URLs) ---
+  const rooms = ["RB 1","RB 2","RB 3","RB 4","RB 5","RB 8","BR Group Room"];
 
   const datePicker = document.getElementById('datePicker');
   const todayBtn = document.getElementById('todayBtn');
@@ -8,7 +8,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
   // --- Set today button ---
   todayBtn.addEventListener('click', () => {
-    const iso = new Date().toISOString().slice(0,10);
+    const today = new Date();
+    const iso = today.toLocaleDateString('en-CA'); // YYYY-MM-DD local
     datePicker.value = iso;
     loadDay();
   });
@@ -91,6 +92,7 @@ document.addEventListener("DOMContentLoaded", function() {
   }
 
   // --- Initialize with today ---
-  datePicker.value = new Date().toISOString().slice(0,10);
+  const today = new Date();
+  datePicker.value = today.toLocaleDateString('en-CA');
   loadDay();
 });
