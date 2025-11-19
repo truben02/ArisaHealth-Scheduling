@@ -2,7 +2,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // --- Read URL parameters ---
   const url = new URL(window.location.href);
   const room = url.searchParams.get("room");
-  let date = url.searchParams.get("date");
+  let startDate = url.searchParams.get("date"); // This will become week start (Mon)
 
   const roomTitle = document.getElementById("roomTitle");
   const datePicker = document.getElementById("datePicker");
@@ -11,39 +11,89 @@ document.addEventListener("DOMContentLoaded", function () {
   const homeBtn = document.getElementById("homeBtn");
   const roomTable = document.getElementById("roomTable");
 
-  if (!room || !date) {
+  if (!room || !startDate) {
     roomTitle.textContent = "Missing room or date";
     return;
   }
 
-  // --- Format date as "Monday MM/DD" ---
-  function formatPretty(dateStr) {
-    const d = new Date(dateStr + "T00:00:00");
-    const weekday = d.toLocaleDateString("en-US", { weekday: "long" });
-    const md = d.toLocaleDateString("en-US", { month: "numeric", day: "numeric" });
-    return `${weekday} ${md}`;
+  // --- Helper: format date as "Mon 11/25"
+  function pretty(d) {
+    return d.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "numeric",
+      day: "numeric"
+    });
+  }
+
+  // --- Convert YYYY-MM-DD to Date ---
+  function toDate(iso) {
+    return new Date(iso + "T00:00:00");
+  }
+
+  // --- Convert Date to YYYY-MM-DD ---
+  function toISO(d) {
+    return d.toLocaleDateString("en-CA");
+  }
+
+  // --- Get Monday for a given date ---
+  function getMonday(d) {
+    const day = d.getDay();        // 0=Sun 1=Mon ...
+    const diff = day === 0 ? -6 : 1 - day;
+    const monday = new Date(d);
+    monday.setDate(d.getDate() + diff);
+    return monday;
+  }
+
+  // --- Build week array (7 dates) ---
+  function buildWeek(monday) {
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      days.push(d);
+    }
+    return days;
   }
 
   // --- Build times ---
   const times = [];
   for (let h = 8; h <= 17; h++) {
     for (let m of [0, 15, 30, 45]) {
-      const hh = String(h).padStart(2, "0");
-      const mm = String(m).padStart(2, "0");
-      times.push(`${hh}:${mm}`);
+      times.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
     }
   }
 
-  // --- Render room table ---
-  function loadDay() {
-    roomTitle.textContent = `${room} — ${formatPretty(date)}`;
-    datePicker.value = date;
+  // --- Main render ---
+  function loadWeek() {
+    const start = getMonday(toDate(startDate));
+    const week = buildWeek(start);
+
+    // Update displayed title & date picker
+    roomTitle.textContent = `${room} — Week of ${pretty(start)}`;
+    datePicker.value = toISO(start);
 
     roomTable.innerHTML = "";
 
     const table = document.createElement("table");
+    const thead = document.createElement("thead");
     const tbody = document.createElement("tbody");
 
+    // Header row
+    const trHead = document.createElement("tr");
+    const thTime = document.createElement("th");
+    thTime.textContent = "Time";
+    trHead.appendChild(thTime);
+
+    week.forEach((d) => {
+      const th = document.createElement("th");
+      th.textContent = pretty(d);
+      trHead.appendChild(th);
+    });
+
+    thead.appendChild(trHead);
+    table.appendChild(thead);
+
+    // Rows for each time
     times.forEach((time) => {
       const tr = document.createElement("tr");
 
@@ -51,28 +101,36 @@ document.addEventListener("DOMContentLoaded", function () {
       tdTime.textContent = time;
       tr.appendChild(tdTime);
 
-      const tdVal = document.createElement("td");
-      tdVal.className = "slotCell";
-      tdVal.dataset.room = room;
-      tdVal.dataset.date = date;
-      tdVal.dataset.time = time;
-      tdVal.textContent = "...";
+      week.forEach((d) => {
+        const iso = toISO(d);
+        const td = document.createElement("td");
+        td.className = "slotCell";
+        td.dataset.room = room;
+        td.dataset.date = iso;
+        td.dataset.time = time;
+        td.textContent = "...";
 
-      // Subscribe to realtime updates
-      db.ref(`rooms/${room}/${date}/${time}`).on("value", (snap) => {
-        const v = snap.val();
-        tdVal.textContent = v || "";
-        tdVal.classList.toggle("reserved", !!v);
+        // Firebase realtime updates
+        db.ref(`rooms/${room}/${iso}/${time}`).on("value", (snap) => {
+          const v = snap.val();
+          td.textContent = v || "";
+          td.classList.toggle("reserved", !!v);
+        });
+
+        // Edit slot
+        td.addEventListener("click", async () => {
+          const ref = db.ref(`rooms/${room}/${iso}/${time}`);
+          const current = (await ref.once("value")).val() || "";
+          const val = prompt(
+            `Enter reservation for ${room}\n${pretty(d)} ${time}:`,
+            current
+          );
+          ref.set(val || "");
+        });
+
+        tr.appendChild(td);
       });
 
-      // Click to edit slot
-      tdVal.addEventListener("click", async () => {
-        const current = (await db.ref(`rooms/${room}/${date}/${time}`).once("value")).val() || "";
-        const val = prompt(`Enter reservation for ${room} ${date} ${time}:`, current);
-        db.ref(`rooms/${room}/${date}/${time}`).set(val || "");
-      });
-
-      tr.appendChild(tdVal);
       tbody.appendChild(tr);
     });
 
@@ -80,28 +138,28 @@ document.addEventListener("DOMContentLoaded", function () {
     roomTable.appendChild(table);
   }
 
-  // --- Date selection ---
+  // --- Date picker change (jump to that week) ---
   datePicker.addEventListener("change", () => {
-    date = datePicker.value;
-    loadDay();
+    startDate = datePicker.value;
+    loadWeek();
   });
 
-  // --- Prev / Next day buttons ---
-  function shiftDay(days) {
-    const d = new Date(date + "T00:00:00");
-    d.setDate(d.getDate() + days);
-    date = d.toLocaleDateString("en-CA");
-    loadDay();
+  // --- Week shifting ---
+  function shiftWeek(offset) {
+    const d = getMonday(toDate(startDate));
+    d.setDate(d.getDate() + offset * 7);
+    startDate = toISO(d);
+    loadWeek();
   }
 
-  prevBtn.addEventListener("click", () => shiftDay(-1));
-  nextBtn.addEventListener("click", () => shiftDay(1));
+  prevBtn.addEventListener("click", () => shiftWeek(-1));
+  nextBtn.addEventListener("click", () => shiftWeek(1));
 
-  // --- Home button ---
+  // --- Home ---
   homeBtn.addEventListener("click", () => {
     window.location.href = "index.html";
   });
 
-  // --- Initial load ---
-  loadDay();
+  // Initial load
+  loadWeek();
 });
