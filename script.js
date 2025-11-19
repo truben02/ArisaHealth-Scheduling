@@ -7,6 +7,15 @@ document.addEventListener("DOMContentLoaded", function () {
   const prevBtn = document.getElementById("prevBtn");
   const nextBtn = document.getElementById("nextBtn");
   const roomsContainer = document.getElementById("rooms");
+  const currentDayDiv = document.getElementById("currentDay");
+
+  // --- Format date as "Monday MM/DD" ---
+  function formatPretty(dateStr) {
+    const d = new Date(dateStr + "T00:00:00");
+    const weekday = d.toLocaleDateString("en-US", { weekday: "long" });
+    const md = d.toLocaleDateString("en-US", { month: "numeric", day: "numeric" });
+    return `${weekday} ${md}`;
+  }
 
   // --- Time slots ---
   const times = [];
@@ -23,6 +32,10 @@ document.addEventListener("DOMContentLoaded", function () {
     const date = datePicker.value;
     if (!date) return;
 
+    // --- Update formatted day ---
+    currentDayDiv.textContent = formatPretty(date);
+
+    // --- Build table ---
     roomsContainer.innerHTML = "";
 
     const table = document.createElement("table");
@@ -40,7 +53,6 @@ document.addEventListener("DOMContentLoaded", function () {
       th.innerHTML = `<a href="room.html?room=${encodeURIComponent(room)}&date=${date}">${room}</a>`;
       headRow.appendChild(th);
     });
-
     thead.appendChild(headRow);
 
     // Body rows
@@ -59,15 +71,16 @@ document.addEventListener("DOMContentLoaded", function () {
         td.dataset.room = room;
         td.dataset.date = date;
         td.dataset.time = time;
+        td.textContent = "...";
 
-        // Subscribe to Firebase realtime
+        // Firebase realtime
         db.ref(`rooms/${room}/${date}/${time}`).on("value", (snap) => {
           const v = snap.val();
           td.textContent = v || "";
           td.classList.toggle("reserved", !!v);
         });
 
-        // Click to edit
+        // Edit slot on click
         td.addEventListener("click", async () => {
           const current = (await db.ref(`rooms/${room}/${date}/${time}`).once("value")).val() || "";
           const val = prompt(`Enter reservation for ${room} ${date} ${time}:`, current);
@@ -87,15 +100,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // --- Shift day safely ---
   function shiftDay(days) {
-    const d = new Date(datePicker.value + "T00:00:00"); // local midnight
+    const d = new Date(datePicker.value + "T00:00:00");
 
-    // temporarily remove the change listener
+    // temporarily remove change listener to prevent double load
     datePicker.removeEventListener("change", loadDay);
 
     d.setDate(d.getDate() + days);
     datePicker.value = d.toLocaleDateString("en-CA");
 
-    // re-add the change listener
+    // re-add listener
     datePicker.addEventListener("change", loadDay);
 
     loadDay();
@@ -104,9 +117,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // --- Event listeners ---
   prevBtn.addEventListener("click", () => shiftDay(-1));
   nextBtn.addEventListener("click", () => shiftDay(1));
-
   datePicker.addEventListener("change", loadDay);
-
   todayBtn.addEventListener("click", () => {
     const today = new Date();
     datePicker.value = today.toLocaleDateString("en-CA");
