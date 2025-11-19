@@ -1,101 +1,107 @@
-document.addEventListener("DOMContentLoaded", function() {
-  const params = new URLSearchParams(window.location.search);
-  const room = params.get('room') || "Room A";
+document.addEventListener("DOMContentLoaded", function () {
+  // --- Read URL parameters ---
+  const url = new URL(window.location.href);
+  const room = url.searchParams.get("room");
+  let date = url.searchParams.get("date");
 
   const roomTitle = document.getElementById("roomTitle");
-  const weekContainer = document.getElementById("weekContainer");
-  const prevWeekBtn = document.getElementById("prevWeek");
-  const nextWeekBtn = document.getElementById("nextWeek");
+  const datePicker = document.getElementById("datePicker");
+  const prevBtn = document.getElementById("prevBtn");
+  const nextBtn = document.getElementById("nextBtn");
+  const homeBtn = document.getElementById("homeBtn");
+  const roomTable = document.getElementById("roomTable");
 
-  roomTitle.textContent = `${room} — Weekly View`;
+  if (!room || !date) {
+    roomTitle.textContent = "Missing room or date";
+    return;
+  }
 
+  // --- Format date as "Monday MM/DD" ---
+  function formatPretty(dateStr) {
+    const d = new Date(dateStr + "T00:00:00");
+    const weekday = d.toLocaleDateString("en-US", { weekday: "long" });
+    const md = d.toLocaleDateString("en-US", { month: "numeric", day: "numeric" });
+    return `${weekday} ${md}`;
+  }
+
+  // --- Build times ---
   const times = [];
   for (let h = 8; h <= 17; h++) {
-    for (let m of [0,15,30,45]) {
-      const hh = String(h).padStart(2,'0');
-      const mm = String(m).padStart(2,'0');
+    for (let m of [0, 15, 30, 45]) {
+      const hh = String(h).padStart(2, "0");
+      const mm = String(m).padStart(2, "0");
       times.push(`${hh}:${mm}`);
     }
   }
 
-  let currentMonday = getMonday(new Date(params.get('date') || new Date()));
+  // --- Render room table ---
+  function loadDay() {
+    roomTitle.textContent = `${room} — ${formatPretty(date)}`;
+    datePicker.value = date;
 
-  prevWeekBtn.addEventListener('click', () => {
-    currentMonday.setDate(currentMonday.getDate() - 7);
-    renderWeek();
-  });
+    roomTable.innerHTML = "";
 
-  nextWeekBtn.addEventListener('click', () => {
-    currentMonday.setDate(currentMonday.getDate() + 7);
-    renderWeek();
-  });
+    const table = document.createElement("table");
+    const tbody = document.createElement("tbody");
 
-  function getMonday(d) {
-    d = new Date(d);
-    const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is Sunday
-    return new Date(d.setDate(diff));
-  }
+    times.forEach((time) => {
+      const tr = document.createElement("tr");
 
-  function renderWeek() {
-    weekContainer.innerHTML = '';
-    const table = document.createElement('table');
-    const thead = document.createElement('thead');
-    const tbody = document.createElement('tbody');
-
-    // Header row: times + dates
-    const trHead = document.createElement('tr');
-    const thEmpty = document.createElement('th');
-    thEmpty.textContent = 'Time';
-    trHead.appendChild(thEmpty);
-
-    const dates = [];
-    for (let i = 0; i < 5; i++) {
-      const d = new Date(currentMonday);
-      d.setDate(d.getDate() + i);
-      const iso = d.toISOString().slice(0,10);
-      dates.push(iso);
-      const th = document.createElement('th');
-      th.textContent = iso;
-      trHead.appendChild(th);
-    }
-    thead.appendChild(trHead);
-
-    // Table rows: each time slot
-    times.forEach(time => {
-      const tr = document.createElement('tr');
-      const tdTime = document.createElement('td');
+      const tdTime = document.createElement("td");
       tdTime.textContent = time;
       tr.appendChild(tdTime);
 
-      dates.forEach(date => {
-        const tdVal = document.createElement('td');
-        tdVal.className = 'slotCell';
-        tdVal.textContent = '...';
+      const tdVal = document.createElement("td");
+      tdVal.className = "slotCell";
+      tdVal.dataset.room = room;
+      tdVal.dataset.date = date;
+      tdVal.dataset.time = time;
+      tdVal.textContent = "...";
 
-        // Realtime subscription
-        db.ref(`rooms/${room}/${date}/${time}`).on('value', snap => {
-          const v = snap.val();
-          tdVal.textContent = v || '';
-          tdVal.classList.toggle('reserved', !!v);
-        });
-
-        tdVal.addEventListener('click', async () => {
-          const current = (await db.ref(`rooms/${room}/${date}/${time}`).once('value')).val() || '';
-          const val = prompt(`Enter reservation name / note for ${room} ${date} ${time}:`, current);
-          db.ref(`rooms/${room}/${date}/${time}`).set(val || '');
-        });
-
-        tr.appendChild(tdVal);
+      // Subscribe to realtime updates
+      db.ref(`rooms/${room}/${date}/${time}`).on("value", (snap) => {
+        const v = snap.val();
+        tdVal.textContent = v || "";
+        tdVal.classList.toggle("reserved", !!v);
       });
 
+      // Click to edit slot
+      tdVal.addEventListener("click", async () => {
+        const current = (await db.ref(`rooms/${room}/${date}/${time}`).once("value")).val() || "";
+        const val = prompt(`Enter reservation for ${room} ${date} ${time}:`, current);
+        db.ref(`rooms/${room}/${date}/${time}`).set(val || "");
+      });
+
+      tr.appendChild(tdVal);
       tbody.appendChild(tr);
     });
 
-    table.appendChild(thead);
     table.appendChild(tbody);
-    weekContainer.appendChild(table);
+    roomTable.appendChild(table);
   }
 
-  renderWeek();
+  // --- Date selection ---
+  datePicker.addEventListener("change", () => {
+    date = datePicker.value;
+    loadDay();
+  });
+
+  // --- Prev / Next day buttons ---
+  function shiftDay(days) {
+    const d = new Date(date + "T00:00:00");
+    d.setDate(d.getDate() + days);
+    date = d.toLocaleDateString("en-CA");
+    loadDay();
+  }
+
+  prevBtn.addEventListener("click", () => shiftDay(-1));
+  nextBtn.addEventListener("click", () => shiftDay(1));
+
+  // --- Home button ---
+  homeBtn.addEventListener("click", () => {
+    window.location.href = "index.html";
+  });
+
+  // --- Initial load ---
+  loadDay();
 });
