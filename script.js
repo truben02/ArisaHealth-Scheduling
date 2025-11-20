@@ -26,6 +26,14 @@ document.addEventListener("DOMContentLoaded", function () {
       times.push(`${hh}:${mm}`);
     }
   }
+  function formatDisplayTime(time) {
+  let [h, m] = time.split(":").map(Number);
+
+  if (h < 13) return time; // Keep normal morning format
+
+  const pmHour = h - 12;
+  return m === 0 ? `${pmHour} PM` : `${pmHour}:${String(m).padStart(2,"0")} PM`;
+}
 
   // --- Load a specific day ---
   function loadDay() {
@@ -60,7 +68,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       // Time column
       const tdTime = document.createElement("td");
-      tdTime.textContent = time;
+      tdTime.textContent = formatDisplayTime(time);
       tr.appendChild(tdTime);
 
       rooms.forEach((room, colIndex) => {
