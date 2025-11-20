@@ -78,7 +78,7 @@ th a:hover {
 /* Drag-selection highlight */
 .selectedCell {
   background-color: #009CA7 !important;
-  outline: 2px solid #D31772;
+  outline: 2px solid #6CBE4C;
   outline-offset: -2px;
 }
 
