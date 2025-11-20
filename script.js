@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", function () {
   // --- Rooms ---
-  const rooms = ["RB 1", "RB 2", "RB 3", "RB 4", "RB 5", "RB 8", "BR Group Room"];
+  const rooms = ["RB 1", "RB 2", "RB 3", "RB 4", "RB 5", "RB 8", "BR Group Room","BN 129"];
 
   const datePicker = document.getElementById("datePicker");
   const todayBtn = document.getElementById("todayBtn");
