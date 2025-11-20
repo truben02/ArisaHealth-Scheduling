@@ -59,6 +59,14 @@ document.addEventListener("DOMContentLoaded", function () {
       times.push(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
     }
   }
+  function formatDisplayTime(time) {
+  let [h, m] = time.split(":").map(Number);
+
+  if (h < 13) return time; // Keep normal morning format
+
+  const pmHour = h - 12;
+  return m === 0 ? `${pmHour} PM` : `${pmHour}:${String(m).padStart(2,"0")} PM`;
+}
 
   // -------------------------------------------------------------
   // Main Render - Week View
@@ -96,7 +104,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const tr = document.createElement("tr");
 
       const tdTime = document.createElement("td");
-      tdTime.textContent = time;
+      tdTime.textContent = formatDisplayTime(time);
       tr.appendChild(tdTime);
 
       week.forEach((d, colIndex) => {
